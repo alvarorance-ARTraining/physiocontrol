@@ -442,11 +442,37 @@ input[type=range]{padding:0;height:4px;accent-color:var(--c1);cursor:pointer}
               <label>Déficit neto Na⁺ — auto (mg)</label>
               <input type="number" step="1" id="f-na-deficit" readonly>
             </div>
+          </div>
+
+          <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;margin-top:4px">
+            <span>Calidad de señal Hdrop</span>
+          </div>
+          <div class="fg3" style="margin-bottom:10px">
             <div class="fg">
               <label>hDropScore medio (calidad señal, 0–100)</label>
               <input type="number" min="0" max="100" step="1" id="f-hdrop-score" placeholder="ej. 65" oninput="calcSodio()">
             </div>
           </div>
+
+          <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;margin-top:4px">
+            <span>Medición directa — LAQUAtwin Na-11</span>
+            <span style="font-size:9px;font-weight:400;color:var(--txt3);margin-left:6px">gold standard de campo</span>
+          </div>
+          <div class="fg3" style="margin-bottom:10px">
+            <div class="fg">
+              <label>Concentración Na⁺ LAQUAtwin (mg/L)</label>
+              <input type="number" step="1" id="f-na-laqua" placeholder="ej. 980 mg/L" oninput="calcLaqua()">
+            </div>
+            <div class="fg">
+              <label>Na⁺ LAQUAtwin — auto (mmol/L)</label>
+              <input type="number" step="0.1" id="f-na-laqua-mmol" readonly>
+            </div>
+            <div class="fg">
+              <label>Diferencia Hdrop vs LAQUAtwin — auto</label>
+              <input type="text" id="f-na-laqua-diff" readonly style="font-weight:600">
+            </div>
+          </div>
+          <div id="laqua-interp" style="display:none;margin-bottom:8px"></div>
 
           <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Temperatura cutánea Hdrop (Tskin)</div>
           <div class="fg3">
@@ -1261,30 +1287,20 @@ function calcSodio(){
   const naTotal=+document.getElementById('f-na-total').value||null;
   // Classify by mmol/L
   let perfil,cls,interp;
-  const hdropScore = +document.getElementById('f-hdrop-score')?.value || null;
-  const lowSignal = hdropScore !== null && hdropScore < 50;
   if(concMmol<30){
-    perfil='Concentración baja (<30 mmol/L)';cls='sw-low';
-    interp='Concentración de sodio baja ('+concMmol+' mmol/L). Pérdida electrolítica moderada. Rehidratación principalmente hídrica, siempre con algo de electrolitos para evitar hiponatremia.';
-  } else if(concMmol<=40){
-    perfil='Concentración media (30–40 mmol/L)';cls='sw-mid';
-    interp='Concentración de sodio en rango estándar ('+concMmol+' mmol/L). Estrategia isotónica habitual. Reponer electrolitos en sesiones >60 min o con pérdidas >1,5 L.';
+    perfil='Sudador poco salado (<30 mmol/L)';cls='sw-low';
+    interp='Concentración de sodio baja ('+concMmol+' mmol/L). Pérdida electrolítica moderada incluso con sudoración intensa. Priorizar reposición hídrica. Vigilar hiponatremia si se ingiere mucha agua sin sales.';
   } else if(concMmol<=55){
-    perfil='Concentración media-alta (40–55 mmol/L)';cls='sw-mid';
-    interp='Concentración de sodio media-alta ('+concMmol+' mmol/L). Pérdida electrolítica significativa. Bebida con mayor aporte de sodio (>600 mg/L) o añadir pastilla de sal. Monitorizar déficit acumulado en bloques consecutivos.';
+    perfil='Perfil normal (30–55 mmol/L)';cls='sw-mid';
+    interp='Concentración de sodio en rango estándar ('+concMmol+' mmol/L). Estrategia isotónica habitual. Reponer electrolitos en sesiones >60 min o pérdidas >1.5L.';
   } else {
-    perfil='Concentración muy alta (>55 mmol/L)';cls='sw-high';
-    interp='Concentración de sodio muy elevada ('+concMmol+' mmol/L). Pérdida electrolítica muy significativa. Imprescindible reponer sodio activamente. Considerar bebidas específicas o cápsulas de sal. Riesgo real de calambres.';
+    perfil='Sudador salado (>55 mmol/L)';cls='sw-high';
+    interp='Concentración de sodio elevada ('+concMmol+' mmol/L). Pérdida electrolítica significativa. Imprescindible reponer sodio activamente. Considerar bebidas ricas en sodio o cápsulas de sal. Riesgo de calambres.';
   }
   document.getElementById('f-na-perfil').value=perfil;
   const el=document.getElementById('na-interp');
-  if(lowSignal){
-    el.className='interp warn';
-    el.textContent='Señal Hdrop de baja calidad (hDropScore '+hdropScore+'/100). La concentración de sodio registrada ('+concMmol+' mmol/L) es orientativa. Verificar posición del sensor en próxima sesión.';
-  } else {
-    el.className='interp '+(cls==='sw-low'?'ok':cls==='sw-mid'?'':'warn');
-    el.textContent=interp;
-  }
+  el.className='interp '+(cls==='sw-low'?'ok':cls==='sw-mid'?'':'warn');
+  el.textContent=interp;
   el.style.display='block';
   // Calculate Na deficit
   const naIng = +document.getElementById('f-na-ing').value||0;
@@ -1300,16 +1316,60 @@ function calcSodio(){
 // ── FÓRMULAS ──
 function onRPE(){const v=document.getElementById('f-rpe').value;document.getElementById('rpe-txt').textContent=v+' — '+(RPE_L[v]||'');calcAuto();}
 
+function calcLaqua(){
+  const laqualVal = +document.getElementById('f-na-laqua').value || 0;
+  const hdropVal  = +document.getElementById('f-na-conc').value  || 0;
+  const mmolEl    = document.getElementById('f-na-laqua-mmol');
+  const diffEl    = document.getElementById('f-na-laqua-diff');
+  const interpEl  = document.getElementById('laqua-interp');
+
+  if(!laqualVal){ 
+    if(mmolEl) mmolEl.value='';
+    if(diffEl) diffEl.value='';
+    if(interpEl) interpEl.style.display='none';
+    return;
+  }
+
+  // mmol/L
+  const laquaMmol = parseFloat((laqualVal/23).toFixed(1));
+  if(mmolEl) mmolEl.value = laquaMmol;
+
+  // Diferencia con Hdrop
+  if(hdropVal && diffEl){
+    const diff = Math.round(hdropVal - laqualVal);
+    const pct  = Math.abs(parseFloat(((hdropVal - laqualVal)/laqualVal*100).toFixed(1)));
+    const sign = diff >= 0 ? '+' : '';
+    diffEl.value = sign + diff + ' mg/L (' + (diff>=0?'+':'') + (pct) + '%)';
+
+    // Interpretation
+    if(interpEl){
+      interpEl.style.display = 'block';
+      if(pct <= 10){
+        interpEl.className = 'interp ok';
+        interpEl.textContent = 'Coherencia Hdrop–LAQUAtwin muy buena (' + pct + '%). El valor Hdrop (' + hdropVal + ' mg/L) es fiable para este perfil y condiciones.';
+      } else if(pct <= 20){
+        interpEl.className = 'interp';
+        interpEl.textContent = 'Diferencia moderada Hdrop–LAQUAtwin (' + pct + '%). Usar LAQUAtwin (' + laqualVal + ' mg/L) como referencia. Revisar posición del sensor en próxima sesión.';
+      } else {
+        interpEl.className = 'interp warn';
+        interpEl.textContent = 'Diferencia elevada Hdrop–LAQUAtwin (' + pct + '%). El valor Hdrop (' + hdropVal + ' mg/L) presenta sesgo significativo respecto al gold standard (' + laqualVal + ' mg/L). Usar LAQUAtwin para el perfil de esta sesión.';
+      }
+    }
+  } else if(diffEl){
+    diffEl.value = '— (introduce Na⁺ Hdrop para comparar)';
+    if(interpEl) interpEl.style.display = 'none';
+  }
+}
+
 function calcSweat(){
   const pre=+document.getElementById('f-pre').value||0;
   const post=+document.getElementById('f-post').value||0;
   const fl=+document.getElementById('f-fl').value||0;
   const dur=+document.getElementById('f-dur').value||60;
   if(pre>0&&post>0){
-    const pn=Math.round((pre-post)*1000);
-    const pnBruta=Math.round((pre-post)*1000+fl);
-    const ts=Math.round(pnBruta/(dur/60));
-    const pm=(pn/(pre*1000)*100).toFixed(1);
+    const pn=Math.round((pre-post)*1000+fl);
+    const ts=Math.round(pn/(dur/60));
+    const pm=((pre-post)/pre*100).toFixed(1);
     document.getElementById('f-pn').value=pn;
     document.getElementById('f-ts').value=ts;
     document.getElementById('f-pm').value=pm;
@@ -1327,6 +1387,8 @@ function calcAuto(){
 function limpiarForm(){
   document.querySelectorAll('#p-registro input:not([type=range]),#p-registro textarea').forEach(el=>{if(!el.readOnly)el.value='';});
   document.getElementById('f-rpe').value=13;onRPE();
+  const laEl=document.getElementById('laqua-interp');if(laEl)laEl.style.display='none';
+  const hdropSt=document.getElementById('hdrop-import-status');if(hdropSt)hdropSt.style.display='none';
   document.getElementById('acople-box').style.display='none';
   const wbgtEl=document.getElementById('f-wbgt'); if(wbgtEl) wbgtEl.value='';
   const wbgtNivel=document.getElementById('f-wbgt-nivel'); if(wbgtNivel) wbgtNivel.value='';
@@ -1421,6 +1483,8 @@ function guardarSesion(){
     pn,ts,pm,
     naConc:+document.getElementById('f-na-conc').value||null,
     naMmol:+document.getElementById('f-na-mmol').value||null,
+    naLaqua:+document.getElementById('f-na-laqua').value||null,
+    naLaquaMmol:+document.getElementById('f-na-laqua-mmol').value||null,
     naSweat:+document.getElementById('f-na-sweat').value||null,
     naIng:+document.getElementById('f-na-ing').value||null,
     naDeficit:+document.getElementById('f-na-deficit').value||null,
@@ -1608,6 +1672,7 @@ function editarSesion(el){const id=el.dataset.sid;
   setV('f-post',s.post);
   setV('f-fl',s.fl);
   setV('f-na-conc',s.naConc);
+  setV('f-na-laqua',s.naLaqua);
   setV('f-na-total',s.naTotal);
   setV('f-na-sweat',s.naSweat);
   setV('f-na-ing',s.naIng);
@@ -2150,8 +2215,9 @@ function printPDF(){
     ['Tasa sudoración', s.ts+' mL/h'],
     ['% pérdida de masa', pm.toFixed(1)+'%'],
     s.naConc?['Sodio Hdrop', s.naConc+' mg/L'+(s.naMmol?' ('+s.naMmol+' mmol/L)':'')]:null,
+    s.naLaqua?['LAQUAtwin Na-11', s.naLaqua+' mg/L'+(s.naLaquaMmol?' ('+s.naLaquaMmol+' mmol/L)':'')]:null,
     s.naTotal?['Sodio total perdido', s.naTotal+' mg']:null,
-    
+    s.naK?['Potasio perdido', s.naK+' mg']:null,
     s.naSweat?['Sudor total Hdrop', s.naSweat+' L']:null,
   ]);
   body+='</div>';
@@ -2848,10 +2914,6 @@ function importHdropCSV(input){
       // Also fill tmax in temperatura block (same value)
       if(tskinMax)   set('f-tmax', parseFloat(tskinMax.toFixed(1)));
       if(tskinStart) set('f-thdrop', parseFloat(tskinStart.toFixed(1)));
-
-      // hDropScore desde metadata CSV
-      const hdropScoreCSV = parseFloat(meta['averagehDropScore']) || null;
-      if(hdropScoreCSV) set('f-hdrop-score', Math.round(hdropScoreCSV));
 
       // Trigger calculations
       calcSodio();
