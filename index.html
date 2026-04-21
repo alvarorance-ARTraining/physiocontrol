@@ -442,6 +442,10 @@ input[type=range]{padding:0;height:4px;accent-color:var(--c1);cursor:pointer}
               <label>Déficit neto Na⁺ — auto (mg)</label>
               <input type="number" step="1" id="f-na-deficit" readonly>
             </div>
+            <div class="fg">
+              <label>hDropScore medio (calidad señal, 0–100)</label>
+              <input type="number" min="0" max="100" step="1" id="f-hdrop-score" placeholder="ej. 65" oninput="calcSodio()">
+            </div>
           </div>
 
           <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Temperatura cutánea Hdrop (Tskin)</div>
@@ -1257,20 +1261,30 @@ function calcSodio(){
   const naTotal=+document.getElementById('f-na-total').value||null;
   // Classify by mmol/L
   let perfil,cls,interp;
+  const hdropScore = +document.getElementById('f-hdrop-score')?.value || null;
+  const lowSignal = hdropScore !== null && hdropScore < 50;
   if(concMmol<30){
-    perfil='Sudador poco salado (<30 mmol/L)';cls='sw-low';
-    interp='Concentración de sodio baja ('+concMmol+' mmol/L). Pérdida electrolítica moderada incluso con sudoración intensa. Priorizar reposición hídrica. Vigilar hiponatremia si se ingiere mucha agua sin sales.';
+    perfil='Concentración baja (<30 mmol/L)';cls='sw-low';
+    interp='Concentración de sodio baja ('+concMmol+' mmol/L). Pérdida electrolítica moderada. Rehidratación principalmente hídrica, siempre con algo de electrolitos para evitar hiponatremia.';
+  } else if(concMmol<=40){
+    perfil='Concentración media (30–40 mmol/L)';cls='sw-mid';
+    interp='Concentración de sodio en rango estándar ('+concMmol+' mmol/L). Estrategia isotónica habitual. Reponer electrolitos en sesiones >60 min o con pérdidas >1,5 L.';
   } else if(concMmol<=55){
-    perfil='Perfil normal (30–55 mmol/L)';cls='sw-mid';
-    interp='Concentración de sodio en rango estándar ('+concMmol+' mmol/L). Estrategia isotónica habitual. Reponer electrolitos en sesiones >60 min o pérdidas >1.5L.';
+    perfil='Concentración media-alta (40–55 mmol/L)';cls='sw-mid';
+    interp='Concentración de sodio media-alta ('+concMmol+' mmol/L). Pérdida electrolítica significativa. Bebida con mayor aporte de sodio (>600 mg/L) o añadir pastilla de sal. Monitorizar déficit acumulado en bloques consecutivos.';
   } else {
-    perfil='Sudador salado (>55 mmol/L)';cls='sw-high';
-    interp='Concentración de sodio elevada ('+concMmol+' mmol/L). Pérdida electrolítica significativa. Imprescindible reponer sodio activamente. Considerar bebidas ricas en sodio o cápsulas de sal. Riesgo de calambres.';
+    perfil='Concentración muy alta (>55 mmol/L)';cls='sw-high';
+    interp='Concentración de sodio muy elevada ('+concMmol+' mmol/L). Pérdida electrolítica muy significativa. Imprescindible reponer sodio activamente. Considerar bebidas específicas o cápsulas de sal. Riesgo real de calambres.';
   }
   document.getElementById('f-na-perfil').value=perfil;
   const el=document.getElementById('na-interp');
-  el.className='interp '+(cls==='sw-low'?'ok':cls==='sw-mid'?'':'warn');
-  el.textContent=interp;
+  if(lowSignal){
+    el.className='interp warn';
+    el.textContent='Señal Hdrop de baja calidad (hDropScore '+hdropScore+'/100). La concentración de sodio registrada ('+concMmol+' mmol/L) es orientativa. Verificar posición del sensor en próxima sesión.';
+  } else {
+    el.className='interp '+(cls==='sw-low'?'ok':cls==='sw-mid'?'':'warn');
+    el.textContent=interp;
+  }
   el.style.display='block';
   // Calculate Na deficit
   const naIng = +document.getElementById('f-na-ing').value||0;
@@ -1292,9 +1306,10 @@ function calcSweat(){
   const fl=+document.getElementById('f-fl').value||0;
   const dur=+document.getElementById('f-dur').value||60;
   if(pre>0&&post>0){
-    const pn=Math.round((pre-post)*1000+fl);
-    const ts=Math.round(pn/(dur/60));
-    const pm=((pre-post)/pre*100).toFixed(1);
+    const pn=Math.round((pre-post)*1000);
+    const pnBruta=Math.round((pre-post)*1000+fl);
+    const ts=Math.round(pnBruta/(dur/60));
+    const pm=(pn/(pre*1000)*100).toFixed(1);
     document.getElementById('f-pn').value=pn;
     document.getElementById('f-ts').value=ts;
     document.getElementById('f-pm').value=pm;
@@ -2136,7 +2151,7 @@ function printPDF(){
     ['% pérdida de masa', pm.toFixed(1)+'%'],
     s.naConc?['Sodio Hdrop', s.naConc+' mg/L'+(s.naMmol?' ('+s.naMmol+' mmol/L)':'')]:null,
     s.naTotal?['Sodio total perdido', s.naTotal+' mg']:null,
-    s.naK?['Potasio perdido', s.naK+' mg']:null,
+    
     s.naSweat?['Sudor total Hdrop', s.naSweat+' L']:null,
   ]);
   body+='</div>';
@@ -2833,6 +2848,10 @@ function importHdropCSV(input){
       // Also fill tmax in temperatura block (same value)
       if(tskinMax)   set('f-tmax', parseFloat(tskinMax.toFixed(1)));
       if(tskinStart) set('f-thdrop', parseFloat(tskinStart.toFixed(1)));
+
+      // hDropScore desde metadata CSV
+      const hdropScoreCSV = parseFloat(meta['averagehDropScore']) || null;
+      if(hdropScoreCSV) set('f-hdrop-score', Math.round(hdropScoreCSV));
 
       // Trigger calculations
       calcSodio();
