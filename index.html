@@ -1784,7 +1784,7 @@ function renderSweatProfile(){
   const avgConc=ses.reduce((a,s)=>a+s.naConc,0)/ses.length;
   const avgConcMmol=parseFloat((avgConc/23).toFixed(1));
   const avgTs=ses.filter(s=>s.ts).reduce((a,s)=>a+s.ts,0)/ses.filter(s=>s.ts).length||0;
-  const totalNa=ses.reduce((a,s)=>a+(s.naTotal||0),0);
+  const naEstimado=s=>s.naTotal||(s.naConc&&s.ts&&s.dur?Math.round(s.naConc*(s.ts/1000)*(s.dur/60)):0);const totalNa=ses.reduce((a,s)=>a+naEstimado(s),0);
   let perfil,cls,interp;
   if(avgConcMmol<30){perfil='Sudador poco salado';cls='sw-low';interp='Concentración media de sodio baja (<30 mmol/L). Pérdida electrolítica moderada incluso con sudoración intensa. La rehidratación puede ser fundamentalmente hídrica aunque siempre con algo de electrolitos para evitar hiponatremia.';}
   else if(avgConcMmol<=55){perfil='Perfil normal de sodio';cls='sw-mid';interp='Concentración media de sodio en rango estándar (30–55 mmol/L). Estrategia isotónica habitual. Reponer electrolitos durante sesiones largas (>60 min) o con pérdidas superiores a 1.5L.';}
@@ -1801,7 +1801,7 @@ function renderSweatProfile(){
   h+='</div>';
   h+='<div class="card"><div class="ct">Recomendaciones de rehidratación</div>';
   const litros=(avgTs/1000).toFixed(1);
-  const mgNaH=Math.round(avgConc*23*avgTs/1000);
+  const mgNaH=Math.round(avgConc*avgTs/1000);
   h+='<div class="rrow"><span class="rl">Reposición hídrica/hora</span><span class="rv">'+Math.round(avgTs*0.8)+'–'+Math.round(avgTs)+' mL/h</span></div>';
   h+='<div class="rrow"><span class="rl">Sodio a reponer/hora</span><span class="rv">'+Math.round(mgNaH*0.8)+'–'+mgNaH+' mg Na/h</span></div>';
   h+='<div class="rrow"><span class="rl">Bebida recomendada</span><span class="rv">'+(avgConc>45?'Isotónica alta en sodio o bebida + cápsula de sal':'Isotónica estándar (400–600 mg Na/L)')+'</span></div>';
