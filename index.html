@@ -623,7 +623,16 @@ input[type=range]{padding:0;height:4px;accent-color:var(--c1);cursor:pointer}
         <div class="ct">Seleccionar sesión</div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div class="fg" style="flex:1;min-width:200px"><label>Sesión</label><select id="inf-sel" onchange="renderInforme()"></select></div>
-          <button class="btn btn-primary" onclick="printPDF()">Imprimir / Guardar PDF</button>
+          <div class="fg" style="min-width:130px">
+            <label>Idioma del informe</label>
+            <select id="inf-lang" style="font-size:13px;padding:7px 9px;border-radius:8px;border:0.5px solid var(--border2);background:var(--bg3);font-family:inherit;width:100%">
+              <option value="es">🇪🇸 Español</option>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="printPDF()">Imprimir / PDF</button>
+          <button class="btn" style="background:var(--c1l);color:var(--c1d);border-color:var(--c1)" onclick="exportDocx()">⬇ Word (.docx)</button>
           <button class="btn btn-green btn-sm" onclick="exportTxt()">Exportar .txt</button>
         </div>
         <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid var(--border)">
@@ -2951,6 +2960,521 @@ function importHdropCSV(input){
 }
 
 
+
+// ══════════════════════════════════════════════════
+// AR PHYSIOCONTROL — MOTOR DE INFORMES WORD (.docx)
+// Generación automática con narrativa fisiológica
+// real en ES / FR / EN + firma + logo AR Training Corner
+// ══════════════════════════════════════════════════
+
+const _FIRMA_B64 = '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';
+
+// ── TRANSLATIONS ──
+const _IT = {
+  es:{
+    title:s=>`Informe de sesión – ${s.dep}`,
+    responsible:"Álvaro Rancé – Fisiología del Ejercicio y Alto Rendimiento",
+    s1:"1. Contexto de la sesión",s2:"2. Variables relevantes (integración Hdrop + pesaje)",
+    s3:"3. Análisis fisiológico",s3a:"Respuesta cardiovascular",s3b:"Respuesta térmica",
+    s3c:"Respuesta sudoral y balance hídrico",s3d:"Balance electrolítico",
+    s3e:"Relación carga externa / carga interna",s4:"4. Seguimiento longitudinal del bloque",
+    s5:"5. Valoración de la sesión",s6:"6. Conclusión",
+    monitorizar:"Elementos clave a monitorizar en las próximas sesiones:",
+    footer:"AR Training Corner · Álvaro Rancé · Fisiología del Ejercicio y Alto Rendimiento",
+    generado:d=>`Generado el ${d}`,
+    dur:"Duración",int:"Intensidad",fcm:"FC media",fcx:"FC máxima",
+    env:"Entorno",alt:"Altitud",fase:"Fase del bloque",rpe_lbl:"RPE (Borg 6–20)",
+    comp:"Sesión completada",wbgt:"WBGT estimado",
+    perdida_neta:"Pérdida neta de peso",ingesta:"Ingesta durante la sesión",
+    tasa_real:"Tasa de sudoración real (pesaje)",
+    na_conc:"Concentración Na⁺ fase estable",na_total:"Sodio perdido estimado",
+    na_ing:"Sodio ingerido",na_deficit:"Déficit neto de sodio",
+    tskin:"Temperatura cutánea (Tskin)",tcore:"T. CORE corporal",
+    spo2_min:"SpO₂ mínima",spo2_med:"SpO₂ media",
+    zona_baja:"Zona aeróbica baja",zona_media:"Zona aeróbica media",
+    camara:"Cámara térmica",bloque:"Bloque",sesion:"Sesión",min:"minutos",
+    v_int:"Intensidad",v_term:"Estrés térmico",v_cardio:"Respuesta cardiovascular",
+    v_hidrico:"Balance hídrico",v_electro:"Balance electrolítico",
+    v_comp:"Sesión completada",v_acople:"Índice de acople",
+    int_ok:"Bien controlada – dentro del rango previsto",
+    term_ok:"Presente y tolerable – estímulo adecuado a la fase",
+    term_no:"No aplica en este tipo de sesión",
+    cardio_ok:"Estable – sin signos de descompensación",
+    hid_pos:"Positivo – estrategia de ingesta correcta",
+    hid_ok:"Aceptable – vigilar en próximas sesiones",
+    hid_mal:"A revisar – pérdida superior al 2%",
+    electro_ok:"Equilibrado o déficit mínimo",
+    electro_mod:"Déficit moderado – ajustar concentración o volumen",
+    electro_mal:"Déficit significativo – revisar estrategia electrolítica",
+    mon_fc:"FC para la misma carga externa: una reducción progresiva indicará adaptación cardiovascular",
+    mon_ts:"Tasa de sudoración: un aumento señalará mejora de la respuesta termorreguladora",
+    mon_na:"Concentración de sodio en sudor: un descenso progresivo reflejará adaptación de la glándula ecrina",
+    mon_hid:"Balance hídrico y electrolítico: mantener el seguimiento sesión a sesión",
+    mon_spo2:"SpO₂ mínima y tiempo <90%: monitorizar la tolerancia a la altitud",
+    lon_ses:"Sesión",lon_fc:"FC media",lon_na:"Na⁺ (mg/L)",lon_tskin:"Tskin máx."
+  },
+  fr:{
+    title:s=>`Rapport de séance – ${s.dep}`,
+    responsible:"Álvaro Rancé – Physiologie de l'exercice et haute performance",
+    s1:"1. Contexte de la séance",s2:"2. Variables pertinentes (intégration Hdrop + pesée)",
+    s3:"3. Analyse physiologique",s3a:"Réponse cardiovasculaire",s3b:"Réponse thermique",
+    s3c:"Réponse sudorale et bilan hydrique",s3d:"Bilan électrolytique",
+    s3e:"Relation charge externe / charge interne",s4:"4. Suivi longitudinal du bloc",
+    s5:"5. Évaluation de la séance",s6:"6. Conclusion",
+    monitorizar:"Éléments clés à surveiller lors des prochaines séances :",
+    footer:"AR Training Corner · Álvaro Rancé · Physiologie de l'exercice et haute performance",
+    generado:d=>`Généré le ${d}`,
+    dur:"Durée",int:"Intensité",fcm:"FC moyenne",fcx:"FC maximale",
+    env:"Environnement",alt:"Altitude",fase:"Phase du bloc",rpe_lbl:"RPE (Borg 6–20)",
+    comp:"Séance complétée",wbgt:"WBGT estimé",
+    perdida_neta:"Perte nette de poids",ingesta:"Ingestion pendant la séance",
+    tasa_real:"Taux de sudation réel (pesée)",
+    na_conc:"Concentration Na⁺ phase stable",na_total:"Sodium perdu estimé",
+    na_ing:"Sodium ingéré",na_deficit:"Déficit net de sodium",
+    tskin:"Température cutanée (Tskin)",tcore:"T. CORE corporelle",
+    spo2_min:"SpO₂ minimale",spo2_med:"SpO₂ moyenne",
+    zona_baja:"Zone aérobie basse",zona_media:"Zone aérobie moyenne",
+    camara:"Chambre thermique",bloque:"Bloc",sesion:"Séance",min:"minutes",
+    v_int:"Intensité",v_term:"Stress thermique",v_cardio:"Réponse cardiovasculaire",
+    v_hidrico:"Bilan hydrique",v_electro:"Bilan électrolytique",
+    v_comp:"Séance complétée",v_acople:"Indice de couplage",
+    int_ok:"Bien contrôlée – dans la plage prévue",
+    term_ok:"Présent et tolérable – stimulus adapté à la phase",
+    term_no:"Non applicable pour ce type de séance",
+    cardio_ok:"Stable – sans signe de décompensation",
+    hid_pos:"Positif – stratégie d'ingestion correcte",
+    hid_ok:"Acceptable – surveiller lors des prochaines séances",
+    hid_mal:"À réviser – perte supérieure à 2%",
+    electro_ok:"Équilibré ou déficit minimal",
+    electro_mod:"Déficit modéré – ajuster concentration ou volume",
+    electro_mal:"Déficit significatif – réviser la stratégie électrolytique",
+    mon_fc:"FC moyenne pour la même charge externe : une réduction progressive indiquera une adaptation cardiovasculaire",
+    mon_ts:"Taux de sudation : une augmentation signalera une amélioration de la réponse thermorégulatrice",
+    mon_na:"Concentration de sodium dans la sueur : une baisse progressive reflétera l'adaptation de la glande eccrine",
+    mon_hid:"Bilan hydrique et électrolytique : maintenir le suivi séance par séance",
+    mon_spo2:"SpO₂ minimale et temps <90% : surveiller la tolérance à l'altitude",
+    lon_ses:"Séance",lon_fc:"FC moy.",lon_na:"Na⁺ (mg/L)",lon_tskin:"Tskin max."
+  },
+  en:{
+    title:s=>`Session Report – ${s.dep}`,
+    responsible:"Álvaro Rancé – Exercise Physiology and High Performance",
+    s1:"1. Session Context",s2:"2. Key Variables (Hdrop + Weighing Integration)",
+    s3:"3. Physiological Analysis",s3a:"Cardiovascular Response",s3b:"Thermal Response",
+    s3c:"Sweat Response and Fluid Balance",s3d:"Electrolyte Balance",
+    s3e:"External Load / Internal Load Relationship",s4:"4. Block Longitudinal Tracking",
+    s5:"5. Session Assessment",s6:"6. Conclusion",
+    monitorizar:"Key elements to monitor in upcoming sessions:",
+    footer:"AR Training Corner · Álvaro Rancé · Exercise Physiology and High Performance",
+    generado:d=>`Generated on ${d}`,
+    dur:"Duration",int:"Intensity",fcm:"Mean HR",fcx:"Max HR",
+    env:"Environment",alt:"Altitude",fase:"Block phase",rpe_lbl:"RPE (Borg 6–20)",
+    comp:"Session completed",wbgt:"Estimated WBGT",
+    perdida_neta:"Net weight loss",ingesta:"Fluid intake during session",
+    tasa_real:"Real sweat rate (weighing)",
+    na_conc:"Na⁺ stable phase concentration",na_total:"Estimated sodium lost",
+    na_ing:"Sodium ingested",na_deficit:"Net sodium deficit",
+    tskin:"Skin temperature (Tskin)",tcore:"Core body temperature",
+    spo2_min:"Min SpO₂",spo2_med:"Mean SpO₂",
+    zona_baja:"Low aerobic zone",zona_media:"Mid aerobic zone",
+    camara:"Thermal chamber",bloque:"Block",sesion:"Session",min:"minutes",
+    v_int:"Intensity",v_term:"Thermal stress",v_cardio:"Cardiovascular response",
+    v_hidrico:"Fluid balance",v_electro:"Electrolyte balance",
+    v_comp:"Session completed",v_acople:"HR/Load coupling index",
+    int_ok:"Well controlled – within planned range",
+    term_ok:"Present and tolerable – appropriate stimulus for this phase",
+    term_no:"Not applicable for this session type",
+    cardio_ok:"Stable – no signs of decompensation",
+    hid_pos:"Positive – intake strategy correct",
+    hid_ok:"Acceptable – monitor in upcoming sessions",
+    hid_mal:"To review – loss above 2%",
+    electro_ok:"Balanced or minimal deficit",
+    electro_mod:"Moderate deficit – adjust concentration or volume",
+    electro_mal:"Significant deficit – review electrolyte strategy",
+    mon_fc:"Mean HR for the same external load: a progressive reduction will indicate cardiovascular adaptation",
+    mon_ts:"Sweat rate: an increase will signal improvement of the thermoregulatory response",
+    mon_na:"Sodium concentration in sweat: a progressive decrease will reflect eccrine gland adaptation",
+    mon_hid:"Fluid and electrolyte balance: maintain session-by-session tracking",
+    mon_spo2:"Minimum SpO₂ and time <90%: monitor altitude tolerance",
+    lon_ses:"Session",lon_fc:"Mean HR",lon_na:"Na⁺ (mg/L)",lon_tskin:"Tskin max."
+  }
+};
+
+function _sweatClass(ts,lang){
+  if(lang==='fr'){return ts>1500?'très élevé':ts>1000?'élevé':ts>500?'modéré':'bas';}
+  if(lang==='en'){return ts>1500?'very high':ts>1000?'high':ts>500?'moderate':'low';}
+  return ts>1500?'muy elevada':ts>1000?'elevada':ts>500?'moderada':'baja';
+}
+
+function _buildNarrative(s,hist,lang){
+  const isC=s.tipo==='calor'||s.tipo==='combinado';
+  const isH=s.tipo==='hipoxia'||s.tipo==='combinado';
+  const isComb=s.tipo==='combinado';
+  const naConc=s.naConc||0;
+  const naMmol=naConc?parseFloat((naConc/23).toFixed(1)):0;
+  const ts=s.ts||0;
+  const pm=s.pre>0?parseFloat(((s.pre-s.post)/s.pre*100).toFixed(1)):0;
+  const naEst=naConc&&ts&&s.dur?Math.round(naConc*(ts/1000)*(s.dur/60)):(s.naTotal||0);
+  const deficit=s.naDeficit||(naEst&&s.naIng?naEst-s.naIng:null);
+  const alt=s.alt||1750;const tcam=s.tcam||30;const hum=s.hum||55;
+  const tsRate=_sweatClass(ts,lang);
+  const perdidaG=s.pre>0?Math.round(Math.abs(s.pre-s.post)*1000):0;
+
+  // CARDIO
+  let cardio='';
+  if(lang==='fr'){
+    if(isComb)cardio=`La FC moyenne de ${s.fcm} bpm s'inscrit dans un contexte de double stress physiologique : chaleur humide (${tcam}°C / ${hum}% HR) et altitude (${alt} m). La répartition triple du débit cardiaque —muscle actif, peau (dissipation thermique) et compensation hypoxique— explique que le coût interne réel est supérieur à ce qu'indique l'intensité de travail externe.`;
+    else if(isC)cardio=`La FC moyenne de ${s.fcm} bpm reflète le coût cardiovasculaire réel dans un contexte de chaleur humide (${tcam}°C / ${hum}% HR). La dérive cardiovasculaire progressive est structurelle dans ces conditions : à charge externe constante, la demande thermique croissante redirige une fraction du débit cardiaque vers la peau, augmentant le coût interne sans modification de l'intensité de travail.`;
+    else if(isH)cardio=`La FC moyenne de ${s.fcm} bpm intègre le coût cardiovasculaire de l'exposition hypoxique à ${alt} m. La réduction de la pression partielle d'oxygène oblige à une augmentation du débit cardiaque pour maintenir la livraison d'oxygène aux tissus actifs.`;
+  } else if(lang==='en'){
+    if(isComb)cardio=`The mean HR of ${s.fcm} bpm must be interpreted within a combined physiological stress context: humid heat (${tcam}°C / ${hum}% RH) and altitude (${alt} m). The triple distribution of cardiac output —active muscle, skin (thermal dissipation) and hypoxic compensation— means the actual internal cost exceeds what external intensity alone would suggest.`;
+    else if(isC)cardio=`The mean HR of ${s.fcm} bpm reflects the real cardiovascular cost under humid heat (${tcam}°C / ${hum}% RH). Progressive cardiovascular drift is structural in these conditions: at constant external load, increasing thermal demand redirects cardiac output toward the skin, raising internal cost without any change in work intensity.`;
+    else if(isH)cardio=`The mean HR of ${s.fcm} bpm integrates the cardiovascular cost of hypoxic exposure at ${alt} m. Reduced partial pressure of oxygen forces increased cardiac output to maintain oxygen delivery to active tissues.`;
+  } else {
+    if(isComb)cardio=`La FC media de ${s.fcm} bpm debe interpretarse en el contexto de doble estrés fisiológico: calor húmedo (${tcam}°C / ${hum}% HR) y altitud (${alt} m). El triple reparto del gasto cardíaco —músculo activo, piel (disipación térmica) y compensación hipóxica— explica que el coste interno real es superior a lo que indica la intensidad de trabajo externa.`;
+    else if(isC)cardio=`La FC media de ${s.fcm} bpm refleja el coste cardiovascular real en un contexto de calor húmedo (${tcam}°C / ${hum}% HR). La deriva cardiovascular progresiva es estructural en estas condiciones: a carga externa constante, la demanda térmica creciente redirige una fracción del gasto cardíaco hacia la piel, aumentando el coste interno sin modificación de la intensidad de trabajo.`;
+    else if(isH)cardio=`La FC media de ${s.fcm} bpm integra el coste cardiovascular de la exposición hipóxica a ${alt} m. La reducción de la presión parcial de oxígeno obliga a un incremento del gasto cardíaco para mantener la entrega de oxígeno a los tejidos activos.`;
+  }
+
+  // THERMAL
+  let termica='';
+  const tskinMax=s.tskinMax||null;
+  const grad=tskinMax?(tskinMax-tcam).toFixed(1):null;
+  if(isC){
+    if(lang==='fr')termica=`${tskinMax?`La température cutanée atteint ${tskinMax}°C. `:''}Avec ${tcam}°C ambiants et ${hum}% HR, le gradient peau-ambiance est réduit${grad?` (${grad}°C)`:''}. L'efficacité évaporative est ${hum>65?'fortement':'modérément'} limitée. L'accumulation thermique progressive est structurelle dans ces conditions.${s.tcore?` La T. CORE de ${s.tcore}°C confirme la charge thermique centrale.`:''}`;
+    else if(lang==='en')termica=`${tskinMax?`Skin temperature reaches ${tskinMax}°C. `:''}With ${tcam}°C ambient and ${hum}% RH, the skin-ambient gradient is reduced${grad?` (${grad}°C)`:''}. Evaporative efficiency is ${hum>65?'strongly':'moderately'} limited. Progressive thermal accumulation is structural under these conditions.${s.tcore?` Core temperature of ${s.tcore}°C confirms the central thermal load.`:''}`;
+    else termica=`${tskinMax?`La temperatura cutánea alcanza ${tskinMax}°C. `:''}Con ${tcam}°C ambientales y ${hum}% HR, el gradiente piel-ambiente es reducido${grad?` (${grad}°C)`:''}. La eficiencia evaporativa está ${hum>65?'fuertemente':'moderadamente'} limitada. La acumulación térmica progresiva es estructural en estas condiciones.${s.tcore?` La T. CORE de ${s.tcore}°C confirma la carga térmica central.`:''}`;
+  } else if(isH){
+    if(lang==='fr')termica=`Dans une séance d'hypoxie pure, la réponse thermique n'est pas le principal driver du stress physiologique.${s.tcore?` La T. CORE de ${s.tcore}°C se maintient dans la plage attendue.`:''}`;
+    else if(lang==='en')termica=`In a pure hypoxic session, the thermal response is not the primary physiological stress driver.${s.tcore?` Core temperature of ${s.tcore}°C remains within the expected range.`:''}`;
+    else termica=`En sesión de hipoxia pura, la respuesta térmica no es el driver principal del estrés fisiológico.${s.tcore?` La T. CORE de ${s.tcore}°C se mantiene dentro del rango esperado.`:''}`;
+  }
+
+  // SWEAT
+  let sudoral='';
+  if(ts>0&&s.pre>0){
+    if(lang==='fr')sudoral=`Le taux de sudation réel estimé (~${ts} mL/h d'après la pesée) est ${tsRate} pour ce niveau d'intensité${isC?' en contexte thermique':''}. La perte nette de ${perdidaG} g représente ${pm}% du poids corporel, ${pm<1?"bien en dessous du seuil critique de 2% — stratégie d'hydratation correcte.":pm<2?"dans la plage acceptable — surveiller l'évolution.":"au-delà du seuil de vigilance — revoir la stratégie d'hydratation."}`;
+    else if(lang==='en')sudoral=`The estimated real sweat rate (~${ts} mL/h from weighing) is ${tsRate} for this intensity level${isC?' in a thermal context':''}. Net loss of ${perdidaG} g represents ${pm}% of body weight, ${pm<1?"well below the critical 2% threshold — hydration strategy correct.":pm<2?"within acceptable range — monitor progression.":"above the warning threshold — review hydration strategy."}`;
+    else sudoral=`La tasa de sudoración real estimada (~${ts} mL/h desde el pesaje) es ${tsRate} para este nivel de intensidad${isC?' en contexto térmico':''}. La pérdida neta de ${perdidaG} g representa el ${pm}% del peso corporal, ${pm<1?"muy por debajo del umbral crítico del 2% — estrategia de hidratación correcta.":pm<2?"dentro del rango aceptable — vigilar la evolución.":"por encima del umbral de vigilancia — revisar estrategia de hidratación."}`;
+  }
+
+  // SODIUM
+  let sodio='';
+  if(naConc){
+    const p_es=naMmol>55?'sudador salado (>55 mmol/L)':naMmol<30?'sudador poco salado (<30 mmol/L)':'perfil normal (30–55 mmol/L)';
+    const p_fr=naMmol>55?'sudateur salé (>55 mmol/L)':naMmol<30?'sudateur peu salé (<30 mmol/L)':'profil normal (30–55 mmol/L)';
+    const p_en=naMmol>55?'salty sweater (>55 mmol/L)':naMmol<30?'low-sodium sweater (<30 mmol/L)':'normal profile (30–55 mmol/L)';
+    const defText=deficit&&deficit>0?(
+      deficit<200?{es:`El déficit neto de sodio (~${deficit} mg) es mínimo y manejable en sesión aislada.`,fr:`Le déficit net de sodium (~${deficit} mg) est minimal et gérable en séance isolée.`,en:`The net sodium deficit (~${deficit} mg) is minimal and manageable in an isolated session.`}:
+      deficit<500?{es:`El déficit neto de sodio (~${deficit} mg) es moderado. En bloques con sesiones consecutivas el déficit acumulado puede ser relevante — ajustar concentración de bebida o volumen de ingesta.`,fr:`Le déficit net de sodium (~${deficit} mg) est modéré. Dans un bloc avec séances consécutives, le déficit accumulé peut être pertinent — ajuster la concentration ou le volume d'ingestion.`,en:`The net sodium deficit (~${deficit} mg) is moderate. In a block with consecutive sessions, accumulated deficit may become relevant — adjust drink concentration or intake volume.`}:
+      {es:`El déficit neto de sodio (~${deficit} mg) es significativo y requiere ajuste de la estrategia electrolítica antes de la próxima sesión. Con sesiones consecutivas puede comprometer la respuesta termorreguladora y aumentar el riesgo de calambres.`,fr:`Le déficit net de sodium (~${deficit} mg) est significatif et nécessite un ajustement de la stratégie électrolytique avant la prochaine séance.`,en:`The net sodium deficit (~${deficit} mg) is significant and requires electrolyte strategy adjustment before the next session.`}
+    ):null;
+    if(lang==='fr')sodio=`La concentration de Na⁺ en phase stable (~${naConc} mg/L / ${naMmol} mmol/L) situe l'athlète dans un profil de ${p_fr}. ${defText?defText.fr:"Le bilan électrolytique est équilibré pour cette séance."}`;
+    else if(lang==='en')sodio=`The Na⁺ concentration in the stable phase (~${naConc} mg/L / ${naMmol} mmol/L) places the athlete in a ${p_en} profile. ${defText?defText.en:"Electrolyte balance is adequate for this session."}`;
+    else sodio=`La concentración de Na⁺ en fase estable (~${naConc} mg/L / ${naMmol} mmol/L) sitúa al deportista en un perfil de ${p_es}. ${defText?defText.es:"El balance electrolítico está equilibrado para esta sesión."}`;
+  }
+
+  // COUPLING
+  let acople_txt='';
+  if(s.acople){
+    const n_es=s.acople<1.05?'acoplado':s.acople<1.15?'desacople leve':'desacople marcado';
+    const n_fr=s.acople<1.05?'couplé':s.acople<1.15?'découplage léger':'découplage marqué';
+    const n_en=s.acople<1.05?'coupled':s.acople<1.15?'slight decoupling':'marked decoupling';
+    if(lang==='fr')acople_txt=`L'indice de couplage FC/charge de ${s.acople.toFixed(2)} indique un ${n_fr}.${s.corrAmbiental?` Une correction environnementale de +${s.corrAmbiental} a été appliquée aux seuils.`:''}`;
+    else if(lang==='en')acople_txt=`The HR/load coupling index of ${s.acople.toFixed(2)} indicates ${n_en}.${s.corrAmbiental?` An environmental correction of +${s.corrAmbiental} was applied to the thresholds.`:''}`;
+    else acople_txt=`El índice de acople FC/carga de ${s.acople.toFixed(2)} indica ${n_es}.${s.corrAmbiental?` Se ha aplicado corrección ambiental de +${s.corrAmbiental} a los umbrales.`:''}`;
+  }
+
+  // LONGITUDINAL
+  let longitudinal='';
+  if(hist&&hist.length>=2){
+    const sesWithNa=hist.filter(h=>h.naConc&&h.id!==s.id).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    if(sesWithNa.length>=1&&naConc){
+      const firstNa=sesWithNa[0].naConc;
+      const trend=naConc<firstNa-20?'↓':naConc>firstNa+20?'↑':'→';
+      if(lang==='fr')longitudinal=`Avec ${hist.length} séances disponibles, la tendance d'adaptation est évaluable. La concentration de Na⁺ en sueur montre une évolution de ${firstNa} → ${naConc} mg/L ${trend}. ${trend==='↓'?"Ce schéma reflète l'adaptation de la glande eccrine : amélioration de la réabsorption tubulaire de Na⁺ avec le stimulus répété. C'est le marqueur le plus robuste d'acclimatation disponible.":trend==='↑'?"La concentration augmente — analyser le contexte de la séance avant de conclure à une régression.":"La concentration se maintient stable — continuer le suivi longitudinal."}`;
+      else if(lang==='en')longitudinal=`With ${hist.length} sessions available, the adaptation trend is evaluable. Sweat Na⁺ concentration shows an evolution from ${firstNa} → ${naConc} mg/L ${trend}. ${trend==='↓'?"This pattern reflects eccrine gland adaptation: improved tubular Na⁺ reabsorption with repeated stimulus. It is the most robust acclimatization marker available.":trend==='↑'?"Concentration is increasing — analyze session context before concluding regression.":"Concentration remains stable — continue longitudinal tracking."}`;
+      else longitudinal=`Con ${hist.length} sesiones disponibles, la tendencia de adaptación es evaluable. La concentración de Na⁺ en sudor muestra una evolución de ${firstNa} → ${naConc} mg/L ${trend}. ${trend==='↓'?"Este patrón refleja la adaptación de la glándula ecrina: mejora de la reabsorción tubular de Na⁺ con el estímulo repetido. Es el marcador más robusto de aclimatación disponible en estos datos.":trend==='↑'?"La concentración aumenta — analizar el contexto de la sesión antes de concluir regresión.":"La concentración se mantiene estable — continuar el seguimiento longitudinal."}`;
+    } else {
+      if(lang==='fr')longitudinal=`${hist.length} séances enregistrées. Ajouter des données Hdrop pour activer l'analyse d'adaptation électrolytique longitudinale.`;
+      else if(lang==='en')longitudinal=`${hist.length} sessions recorded. Add Hdrop data to activate longitudinal electrolyte adaptation analysis.`;
+      else longitudinal=`${hist.length} sesiones registradas. Añadir datos Hdrop para activar el análisis de adaptación electrolítica longitudinal.`;
+    }
+  }
+
+  // CONCLUSION
+  const tipoTxt={es:{calor:'adaptación al calor',hipoxia:'adaptación hipóxica',combinado:'estrés combinado calor+hipoxia'},fr:{calor:"adaptation à la chaleur",hipoxia:"adaptation hypoxique",combinado:"stress combiné chaleur+hypoxie"},en:{calor:"heat acclimatization",hipoxia:"hypoxic adaptation",combinado:"combined heat+hypoxia stress"}};
+  const tipo=tipoTxt[lang]?.[s.tipo]||s.tipo;
+  const completada=s.comp==='Sí, completa'||(s.comp&&s.comp.toLowerCase().includes('compl'));
+  let conclusion='';
+  if(lang==='fr')conclusion=`Séance ${completada?'bien exécutée':'partiellement réalisée'} dans le cadre du protocole de ${tipo}. La charge physiologique réelle est déterminée par la combinaison du stress ${isC?'thermique':''}${isComb?', hypoxique':''} et de l'intensité de travail — pas uniquement par la charge externe.`;
+  else if(lang==='en')conclusion=`Session ${completada?'well executed':'partially completed'} within the ${tipo} protocol. The real physiological load is determined by the combination of ${isC?'thermal':''}${isComb?', hypoxic':''} stress and work intensity — not by external load alone.`;
+  else conclusion=`Sesión ${completada?'bien ejecutada':'parcialmente realizada'} dentro del protocolo de ${tipo}. La carga fisiológica real está determinada por la combinación del estrés ${isC?'térmico':''}${isComb?', hipóxico':''} y la intensidad de trabajo, no solo por la carga externa.`;
+
+  return {cardio,termica,sudoral,sodio,acople_txt,longitudinal,conclusion};
+}
+
+// ── DOCX BUILDER (pure JS, no dependencies) ──
+function _buildDocxXML(s,hist,lang){
+  const t=_IT[lang]||_IT.es;
+  const narr=_buildNarrative(s,hist,lang);
+  const isC=s.tipo==='calor'||s.tipo==='combinado';
+  const isH=s.tipo==='hipoxia'||s.tipo==='combinado';
+  const pm=s.pre>0?parseFloat(((s.pre-s.post)/s.pre*100).toFixed(1)):0;
+  const perdidaG=s.pre>0?Math.round(Math.abs(s.pre-s.post)*1000):0;
+  const naEst=s.naConc&&s.ts&&s.dur?Math.round(s.naConc*(s.ts/1000)*(s.dur/60)):(s.naTotal||null);
+  const deficit=s.naDeficit||(naEst&&s.naIng?naEst-s.naIng:null);
+  const tipo_disp=s.tipo==='calor'?(lang==='fr'?'Chaleur':lang==='en'?'Heat':'Calor'):s.tipo==='hipoxia'?(lang==='fr'?'Hypoxie':lang==='en'?'Hypoxia':'Hipoxia'):(lang==='fr'?'Chaleur + Hypoxie':lang==='en'?'Heat + Hypoxia':'Calor + Hipoxia');
+
+  const AZUL='04A5E4';const NEGRO='000000';const GRIS='6b6966';const AZUL_OSC='0C447C';
+
+  // Helper to escape XML
+  const x=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  // Build paragraph XML
+  const hdr=(txt,sz,bold,color,bg,after=0,before=0,borderBot=false)=>{
+    const shd=bg?`<w:shd w:val="clear" w:color="auto" w:fill="${bg}"/>`:''
+    const bdr=borderBot?`<w:pBdr><w:bottom w:val="single" w:sz="8" w:color="${AZUL}"/></w:pBdr>`:''
+    return `<w:p><w:pPr>${shd?`<w:shd w:val="clear" w:color="auto" w:fill="${bg}"/>`:''}${bdr}<w:spacing w:before="${before}" w:after="${after}"/></w:pPr><w:r><w:rPr>${bold?'<w:b/>':''}<w:color w:val="${color}"/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t xml:space="preserve">${x(txt)}</w:t></w:r></w:p>`
+  };
+
+  const para=(txt,sz=20,bold=false,color=NEGRO,italic=false,after=160)=>
+    `<w:p><w:pPr><w:spacing w:after="${after}"/></w:pPr><w:r><w:rPr>${bold?'<w:b/>':''}${italic?'<w:i/>':''}<w:color w:val="${color}"/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t xml:space="preserve">${x(txt)}</w:t></w:r></w:p>`;
+
+  const h1=(txt)=>`<w:p><w:pPr><w:spacing w:before="320" w:after="140"/><w:pBdr><w:bottom w:val="single" w:sz="8" w:space="2" w:color="${AZUL}"/></w:pBdr></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${AZUL_OSC}"/><w:sz w:val="28"/><w:szCs w:val="28"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t>${x(txt)}</w:t></w:r></w:p>`;
+  const h2=(txt)=>`<w:p><w:pPr><w:spacing w:before="200" w:after="100"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${NEGRO}"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t>${x(txt)}</w:t></w:r></w:p>`;
+  const sp=(n=120)=>`<w:p><w:pPr><w:spacing w:after="${n}"/></w:pPr></w:p>`;
+  const blt=(txt)=>`<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="80"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t xml:space="preserve">${x(txt)}</w:t></w:r></w:p>`;
+
+  // Table row
+  const tr=(label,value,bg='')=>{
+    const shd=bg?`<w:shd w:val="clear" w:color="auto" w:fill="${bg}"/>`:'';
+    const cellStyle=`<w:tcPr><w:tcW w:w="3800" w:type="dxa"/><w:tcBorders><w:top w:val="single" w:sz="1" w:color="DDDDDD"/><w:bottom w:val="single" w:sz="1" w:color="DDDDDD"/><w:left w:val="single" w:sz="1" w:color="DDDDDD"/><w:right w:val="single" w:sz="1" w:color="DDDDDD"/></w:tcBorders><w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>`;
+    const cellStyle2=`<w:tcPr><w:tcW w:w="5560" w:type="dxa"/><w:tcBorders><w:top w:val="single" w:sz="1" w:color="DDDDDD"/><w:bottom w:val="single" w:sz="1" w:color="DDDDDD"/><w:left w:val="single" w:sz="1" w:color="DDDDDD"/><w:right w:val="single" w:sz="1" w:color="DDDDDD"/></w:tcBorders><w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>`;
+    return `<w:tr><w:tc>${cellStyle}<w:p><w:pPr></w:pPr><w:r><w:rPr><w:color w:val="${GRIS}"/><w:sz w:val="20"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t xml:space="preserve">${x(label)}</w:t></w:r></w:tc><w:tc>${cellStyle2}<w:p><w:pPr></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="20"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t xml:space="preserve">${x(value)}</w:t></w:r></w:tc></w:tr>`;
+  };
+
+  const tbl=(rows)=>`<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="3800"/><w:gridCol w:w="5560"/></w:tblGrid>${rows}</w:tbl>`;
+
+  // Longitudinal table
+  const tbl4=(rows)=>`<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="2340"/><w:gridCol w:w="2340"/><w:gridCol w:w="2340"/><w:gridCol w:w="2340"/></w:tblGrid>${rows}</w:tbl>`;
+  const tr4h=(a,b,c,d)=>{
+    const cs=`<w:tcPr><w:tcW w:w="2340" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="E6F1FB"/><w:tcBorders><w:top w:val="single" w:sz="1" w:color="DDDDDD"/><w:bottom w:val="single" w:sz="1" w:color="DDDDDD"/><w:left w:val="single" w:sz="1" w:color="DDDDDD"/><w:right w:val="single" w:sz="1" w:color="DDDDDD"/></w:tcBorders><w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>`;
+    const cell=(v)=>`<w:tc>${cs}<w:p><w:r><w:rPr><w:b/><w:color w:val="${AZUL_OSC}"/><w:sz w:val="20"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t>${x(v)}</w:t></w:r></w:p></w:tc>`;
+    return `<w:tr>${cell(a)}${cell(b)}${cell(c)}${cell(d)}</w:tr>`;
+  };
+  const tr4=(a,b,c,d)=>{
+    const cs=`<w:tcPr><w:tcW w:w="2340" w:type="dxa"/><w:tcBorders><w:top w:val="single" w:sz="1" w:color="DDDDDD"/><w:bottom w:val="single" w:sz="1" w:color="DDDDDD"/><w:left w:val="single" w:sz="1" w:color="DDDDDD"/><w:right w:val="single" w:sz="1" w:color="DDDDDD"/></w:tcBorders><w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>`;
+    const cell=(v)=>`<w:tc>${cs}<w:p><w:r><w:rPr><w:sz w:val="20"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t>${x(v)}</w:t></w:r></w:p></w:tc>`;
+    return `<w:tr>${cell(a)}${cell(b)}${cell(c)}${cell(d)}</w:tr>`;
+  };
+
+  let body='';
+
+  // HEADER
+  body+=hdr('  AR Training Corner',34,true,'FFFFFF','000000',0,0);
+  body+=hdr(`  ${t.title(s)}`,26,true,'FFFFFF',AZUL,0,0);
+  body+=hdr(`  ${t.responsible}`,18,false,'FFFFFF',AZUL,0,0);
+  body+=sp(280);
+
+  // S1
+  body+=h1(t.s1);
+  const s1rows=[
+    tr(t.dur,`${s.dur} ${t.min}`),
+    tr(t.int,s.rpe<=12?t.zona_baja:t.zona_media),
+    tr(t.fcm,`${s.fcm} bpm`),
+    tr(t.fcx,`${s.fcx} bpm`),
+    tr(t.env,`${t.camara}${s.tcam?` (${s.tcam}°C / ${s.hum}% HR)`:''}`),
+    ...(s.alt?[tr(t.alt,`${s.alt} m s.n.m.`)]:[]),
+    ...(s.wbgt?[tr(t.wbgt,`${s.wbgt}°C`)]:[]),
+    tr(t.fase,`${t.bloque} ${tipo_disp} – ${t.sesion} ${s.snum||'—'}`),
+    tr(t.rpe_lbl,`${s.rpe} / 20`),
+    tr(t.comp,s.comp||'—'),
+  ].join('');
+  body+=tbl(s1rows)+sp();
+
+  // S2
+  body+=h1(t.s2);
+  const s2rows=[];
+  if(s.pre&&s.post){
+    s2rows.push(tr(t.perdida_neta,`${Math.abs(perdidaG)} g (${pm}% ${lang==='fr'?'du poids corporel':lang==='en'?'of body weight':'del peso corporal'})`));
+    s2rows.push(tr(t.ingesta,`${s.fl} mL`));
+    s2rows.push(tr(t.tasa_real,`~${s.ts} mL/h`));
+  }
+  if(s.naConc){
+    s2rows.push(tr(t.na_conc,`~${s.naConc} mg/L (${(s.naConc/23).toFixed(1)} mmol/L)`));
+    if(naEst)s2rows.push(tr(t.na_total,`~${naEst} mg`));
+    if(s.naIng)s2rows.push(tr(t.na_ing,`~${s.naIng} mg`));
+    if(s.naDeficit)s2rows.push(tr(t.na_deficit,`~${s.naDeficit} mg`));
+  }
+  if(s.tskinIni||s.tskinMax)s2rows.push(tr(t.tskin,`${s.tskinIni||'—'}°C → ${s.tskinMax||'—'}°C`));
+  if(s.tcore)s2rows.push(tr(t.tcore,`${s.tcore}°C`));
+  if(s.smin){s2rows.push(tr(t.spo2_min,`${s.smin}%`));s2rows.push(tr(t.spo2_med,`${s.smed}%`));}
+  if(s2rows.length)body+=tbl(s2rows.join(''))+sp();
+
+  // S3
+  body+=h1(t.s3);
+  if(narr.cardio){body+=h2(t.s3a);body+=para(narr.cardio);}
+  if(narr.termica){body+=h2(t.s3b);body+=para(narr.termica);}
+  if(narr.sudoral){body+=h2(t.s3c);body+=para(narr.sudoral);}
+  if(narr.sodio){body+=h2(t.s3d);body+=para(narr.sodio);}
+  if(narr.acople_txt){body+=h2(t.s3e);body+=para(narr.acople_txt);}
+  body+=sp();
+
+  // S4 LONGITUDINAL
+  if(narr.longitudinal){
+    body+=h1(t.s4);
+    body+=para(narr.longitudinal);
+    if(hist&&hist.length>=2){
+      const hRows=hist.filter(h=>h.naConc||h.fcm).slice(-6).reverse();
+      if(hRows.length>=2){
+        body+=sp(80);
+        body+=tbl4(tr4h(t.lon_ses,t.lon_fc,t.lon_na,t.lon_tskin)+hRows.map(h=>tr4(h.fecha?.slice(0,10)||'—',h.fcm?`${h.fcm} bpm`:'—',h.naConc?`${h.naConc}`:'—',h.tskinMax?`${h.tskinMax}°C`:'—')).join(''));
+      }
+    }
+    body+=sp();
+  }
+
+  // S5 VALUATION
+  body+=h1(t.s5);
+  const s5rows=[
+    tr(t.v_int,t.int_ok),
+    tr(t.v_term,isC?t.term_ok:t.term_no),
+    tr(t.v_cardio,t.cardio_ok),
+    tr(t.v_hidrico,pm<1?t.hid_pos:pm<2?t.hid_ok:t.hid_mal),
+    ...(s.naConc?[tr(t.v_electro,!deficit||deficit<200?t.electro_ok:deficit<500?t.electro_mod:t.electro_mal)]:[]),
+    tr(t.v_comp,s.comp||'—'),
+    ...(s.acople?[tr(t.v_acople,`${s.acople.toFixed(2)} ${s.acople<1.05?'✓':s.acople<1.15?'~':'↑'}`)]: []),
+  ].join('');
+  body+=tbl(s5rows)+sp();
+
+  // S6 CONCLUSION
+  body+=h1(t.s6);
+  body+=para(narr.conclusion);
+  body+=sp(80);
+  if(s.obs&&s.obs.trim()&&s.obs!=='Sin observaciones.'){
+    body+=para(lang==='fr'?'Observations :':lang==='en'?'Notes:':'Observaciones:',20,true);
+    body+=para(s.obs,20,false,GRIS,true);
+    body+=sp(80);
+  }
+  body+=para(t.monitorizar,20,true);
+  const monItems=isC?[t.mon_fc,t.mon_ts,...(s.naConc?[t.mon_na]:[]),t.mon_hid]:[t.mon_spo2,t.mon_fc,t.mon_hid];
+  monItems.forEach(item=>body+=blt(item));
+
+  // FOOTER
+  body+=sp(300);
+  body+=`<w:p><w:pPr><w:spacing w:before="120" w:after="60"/><w:pBdr><w:top w:val="single" w:sz="6" w:space="1" w:color="${AZUL}"/></w:pBdr></w:pPr></w:p>`;
+  // Signature image
+  body+=`<w:p><w:pPr><w:spacing w:after="40"/></w:pPr><w:r><w:rPr></w:rPr><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="1143000" cy="571500"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="1" name="firma"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="1" name="firma"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="1143000" cy="571500"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+  body+=para(t.footer,18,false,GRIS);
+  body+=para(t.generado(new Date().toLocaleDateString(lang==='fr'?'fr-FR':lang==='en'?'en-GB':'es-ES')),16,false,GRIS,true);
+
+  return body;
+}
+
+// ── DOCX ZIP BUILDER (pure JS using base64) ──
+async function exportDocx(){
+  const ses=getSessions();
+  if(!ses.length){showToast('Sin sesiones','danger');return;}
+  const idx=parseInt(document.getElementById('inf-sel').value)||0;
+  const s=ses[idx];if(!s){showToast('Sesión no encontrada','danger');return;}
+  const lang=document.getElementById('inf-lang')?.value||'es';
+
+  // Get session history for this athlete
+  const hist=getSessions().filter(x=>x.dep===s.dep).slice().reverse();
+
+  showToast('Generando informe Word...');
+
+  try {
+    // Build document XML body
+    const bodyXML=_buildDocxXML(s,hist,lang);
+
+    // Full document.xml
+    const docXML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" mc:Ignorable="w14 w15 wp14">
+<w:body>${bodyXML}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+
+    // Numbering XML for bullets
+    const numXML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:abstractNum w:abstractNumId="0"><w:nsid w:val="12345678"/><w:multiLevelType w:val="hybridMultilevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="–"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/></w:rPr></w:lvl></w:abstractNum>
+<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>
+</w:numbering>`;
+
+    // Relationships
+    const relsXML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/firma.png"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+</Relationships>`;
+
+    const stylesXML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:rPrDefault></w:docDefaults>
+</w:styles>`;
+
+    const appRelsXML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+    const contentTypesXML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Default Extension="png" ContentType="image/png"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>`;
+
+    // Build ZIP using JSZip (loaded dynamically)
+    const JSZip=await _loadJSZip();
+    const zip=new JSZip();
+    zip.file('[Content_Types].xml',contentTypesXML);
+    zip.file('_rels/.rels',appRelsXML);
+    zip.file('word/document.xml',docXML);
+    zip.file('word/styles.xml',stylesXML);
+    zip.file('word/numbering.xml',numXML);
+    zip.file('word/_rels/document.xml.rels',relsXML);
+    // Add firma image
+    const firmaBytes=_b64toBytes(_FIRMA_B64);
+    zip.file('word/media/firma.png',firmaBytes,{binary:true});
+
+    const blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`Informe_${s.dep.replace(/ /g,'_')}_${s.fecha.slice(0,10)}_${lang}.docx`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    showToast('✓ Informe Word descargado');
+  } catch(err){
+    console.error('exportDocx error:',err);
+    showToast('Error al generar Word: '+err.message,'danger');
+  }
+}
+
+function _b64toBytes(b64){
+  const bin=atob(b64);
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+
+async function _loadJSZip(){
+  if(window.JSZip)return window.JSZip;
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload=()=>res(window.JSZip);
+    s.onerror=()=>rej(new Error('JSZip load failed'));
+    document.head.appendChild(s);
+  });
+}
+
+
+
 // ── INIT ──
 // Ocultar body antes de renderizar para evitar parpadeo visual
 document.body.style.visibility='hidden';
@@ -2981,35 +3505,6 @@ document.body.style.visibility='hidden';
   document.body.style.visibility='visible';
 })();
 
-// ── INIT ──
-// Ocultar body antes de renderizar para evitar parpadeo visual
-document.body.style.visibility='hidden';
-
-(async function init(){
-  // 1. Aplicar modo y formulario sin datos (instantáneo, sin parpadeo)
-  document.getElementById('f-fecha').value=new Date().toISOString().slice(0,16);
-  // nocturno defaults
-  const nocFechaEl=document.getElementById('noc-fecha');
-  if(nocFechaEl)nocFechaEl.value=new Date().toISOString().slice(0,10);
-  onRPE();
-  modo='basico';
-  // Aplicar modo básico directamente sin llamar actualizarModo todavía
-  document.querySelectorAll('.extra-field').forEach(el=>{ if(el.id!=='na-interp') el.style.display='none'; });
-  document.querySelectorAll('.extra-mode-only').forEach(el=>el.style.display='none');
-
-  // 2. Cargar datos (localStorage o cloud)
-  await loadData();
-
-  // 3. Marcar botón de modo básico como activo
-  const btnBasico=document.querySelector('[data-modo-btn="basico"]');
-  if(btnBasico){ document.querySelectorAll('[data-modo-btn]').forEach(b=>b.classList.remove('active')); btnBasico.classList.add('active'); }
-
-  // 4. Adaptar formulario según tipo seleccionado
-  adaptarFormulario();
-
-  // 5. Mostrar app — todo listo, sin parpadeo
-  document.body.style.visibility='visible';
-})();
 
 </script>
 </body>
